@@ -203,6 +203,20 @@ export async function updatePatientWorkflowStatus(patientId: string, status: str
     redirect(`/patients/${patientId}?type=error&message=${encodeURIComponent(error.message)}`);
   }
 
+  // Keep prescription status in sync: Approved / Ready for Delivery → approved; Insurance Verification / Review → benefits_verification
+  const prescriptionStatus =
+    status === "Approved" || status === "Ready for Delivery"
+      ? "approved"
+      : status === "Insurance Verification"
+        ? "benefits_verification"
+        : null;
+  if (prescriptionStatus) {
+    await supabase
+      .from("prescriptions")
+      .update({ status: prescriptionStatus })
+      .eq("patient_id", patientId);
+  }
+
   await supabase.from("messages").insert({
     created_by: null,
     patient_id: patientId,
@@ -213,6 +227,7 @@ export async function updatePatientWorkflowStatus(patientId: string, status: str
   revalidatePath(`/patients/${patientId}`);
   revalidatePath("/patient/dashboard");
   revalidatePath("/dashboard");
+  revalidatePath("/prescriptions");
   redirect(`/patients/${patientId}?type=success&message=${encodeURIComponent(`Patient status updated to ${status}.`)}`);
 }
 

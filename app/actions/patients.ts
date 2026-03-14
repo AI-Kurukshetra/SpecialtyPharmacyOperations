@@ -5,6 +5,90 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
+export type NewEnrollmentOption = { id: string; name: string };
+
+export type PatientEnrollmentData = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  date_of_birth: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  insurance_provider: string | null;
+  member_id: string | null;
+  group_number: string | null;
+  provider_name: string | null;
+  clinic_name: string | null;
+  provider_npi: string | null;
+  provider_phone: string | null;
+  hipaa_consent: boolean;
+  enrollment_confirmed: boolean;
+  medication_name: string | null;
+  diagnosis: string | null;
+  icd10_code: string | null;
+  dose: string | null;
+};
+
+export async function getNewEnrollmentPatientOptions(): Promise<NewEnrollmentOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("patients")
+    .select("id, name")
+    .eq("status", "Enrollment Submitted")
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return (data ?? []).map((p) => ({ id: p.id, name: p.name ?? `${p.id}` }));
+}
+
+export async function getPatientEnrollmentData(
+  patientId: string,
+): Promise<PatientEnrollmentData | null> {
+  const supabase = await createClient();
+  const { data: patient, error: patientError } = await supabase
+    .from("patients")
+    .select(
+      "id, first_name, last_name, date_of_birth, phone, email, address, insurance_provider, member_id, group_number, provider_name, clinic_name, provider_npi, provider_phone, hipaa_consent, enrollment_confirmed",
+    )
+    .eq("id", patientId)
+    .single();
+
+  if (patientError || !patient) return null;
+
+  const { data: prescription } = await supabase
+    .from("prescriptions")
+    .select("medication_name, diagnosis, icd10_code, dose")
+    .eq("patient_id", patientId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const dob = patient.date_of_birth;
+  return {
+    id: patient.id,
+    first_name: patient.first_name ?? "",
+    last_name: patient.last_name ?? "",
+    date_of_birth: dob ? (typeof dob === "string" ? dob : dob.toISOString().slice(0, 10)) : "",
+    phone: patient.phone ?? "",
+    email: patient.email ?? "",
+    address: patient.address ?? "",
+    insurance_provider: patient.insurance_provider ?? "",
+    member_id: patient.member_id ?? "",
+    group_number: patient.group_number ?? "",
+    provider_name: patient.provider_name ?? "",
+    clinic_name: patient.clinic_name ?? "",
+    provider_npi: patient.provider_npi ?? "",
+    provider_phone: patient.provider_phone ?? "",
+    hipaa_consent: patient.hipaa_consent ?? false,
+    enrollment_confirmed: patient.enrollment_confirmed ?? false,
+    medication_name: prescription?.medication_name ?? "",
+    diagnosis: prescription?.diagnosis ?? "",
+    icd10_code: prescription?.icd10_code ?? "",
+    dose: prescription?.dose ?? "",
+  };
+}
+
 export type PatientFormState = {
   message: string;
   fieldErrors: Record<string, string>;
@@ -98,6 +182,11 @@ export async function createPatientEnrollment(
   _prevState: PatientFormState,
   formData: FormData,
 ) {
+  const existingPatientId = getString(formData, "patient_id");
+  if (existingPatientId) {
+    return updatePatientEnrollment(existingPatientId, formData);
+  }
+
   const values = buildPatientValues(formData);
   const checks = {
     hipaa_consent: getCheckbox(formData, "hipaa_consent"),
@@ -151,6 +240,97 @@ export async function createPatientEnrollment(
   revalidatePath("/patients");
   revalidatePath("/dashboard");
   redirect(`/patients/${data}?type=success&message=Patient%20enrollment%20saved.`);
+}
+
+export async function updatePatientEnrollment(
+  patientId: string,
+  formData: FormData,
+): Promise<PatientFormState> {
+  const values = buildPatientValues(formData);
+  const checks = {
+    hipaa_consent: getCheckbox(formData, "hipaa_consent"),
+    enrollment_confirmed: getCheckbox(formData, "enrollment_confirmed"),
+  };
+  const fieldErrors = validatePatientValues(values, checks);
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      message: "Review the highlighted fields and try again.",
+      fieldErrors,
+      values,
+      checks,
+    };
+  }
+
+  const supabase = await createClient();
+  const name = [values.first_name, values.last_name].filter(Boolean).join(" ") || "Patient";
+  const { error: patientError } = await supabase
+    .from("patients")
+    .update({
+      name,
+      first_name: values.first_name,
+      last_name: values.last_name,
+      date_of_birth: values.date_of_birth || null,
+      phone: values.phone,
+      email: values.email,
+      address: values.address,
+      insurance_provider: values.insurance_provider,
+      member_id: values.member_id,
+      group_number: values.group_number,
+      provider_name: values.provider_name,
+      clinic_name: values.clinic_name,
+      provider_npi: values.provider_npi,
+      provider_phone: values.provider_phone,
+      hipaa_consent: checks.hipaa_consent,
+      enrollment_confirmed: checks.enrollment_confirmed,
+    })
+    .eq("id", patientId);
+
+  if (patientError) {
+    return {
+      message: patientError.message,
+      fieldErrors: {},
+      values,
+      checks,
+    };
+  }
+
+  const { data: existingRx } = await supabase
+    .from("prescriptions")
+    .select("id")
+    .eq("patient_id", patientId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingRx?.id) {
+    await supabase
+      .from("prescriptions")
+      .update({
+        medication_name: values.medication_name,
+        diagnosis: values.diagnosis,
+        icd10_code: values.icd10_code,
+        dose: values.dose,
+        provider_name: values.provider_name,
+      })
+      .eq("id", existingRx.id);
+  } else {
+    await supabase.from("prescriptions").insert({
+      created_by: null,
+      patient_id: patientId,
+      medication_name: values.medication_name,
+      diagnosis: values.diagnosis,
+      icd10_code: values.icd10_code,
+      dose: values.dose,
+      provider_name: values.provider_name,
+      status: "pending_review",
+    });
+  }
+
+  revalidatePath("/patients");
+  revalidatePath("/dashboard");
+  revalidatePath(`/patients/${patientId}`);
+  redirect(`/patients/${patientId}?type=success&message=Enrollment%20updated%20and%20saved%20for%20further%20processing.`);
 }
 
 function buildPrescriptionValues(formData: FormData) {

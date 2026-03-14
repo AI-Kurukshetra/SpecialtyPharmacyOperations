@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 
 import { submitPublicEnrollment } from "@/app/actions/workflow";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  fillDemoEnrollmentForm,
+  getRandomDemoEnrollment,
+} from "@/lib/demo-enrollment-data";
 import { initialWorkflowFormState } from "@/lib/form-states";
 
 function FieldError({ message }: { message?: string }) {
@@ -17,6 +21,8 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export function PublicEnrollmentForm() {
+  const formRef = useRef<HTMLFormElement>(null);
+  const lastDemoIdRef = useRef<string | undefined>(undefined);
   const [state, formAction] = useActionState(
     submitPublicEnrollment,
     initialWorkflowFormState,
@@ -25,6 +31,17 @@ export function PublicEnrollmentForm() {
   const values = safeState.values;
   const checks = safeState.checks;
   const errors = safeState.fieldErrors;
+
+  function fillDemoEnrollment() {
+    const form = formRef.current;
+
+    if (!form) return;
+
+    const demoProfile = getRandomDemoEnrollment(lastDemoIdRef.current);
+
+    fillDemoEnrollmentForm(form, demoProfile);
+    lastDemoIdRef.current = demoProfile.id;
+  }
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -40,11 +57,11 @@ export function PublicEnrollmentForm() {
         </p>
       </div>
 
-      <form action={formAction} className="space-y-6">
+      <form action={formAction} className="space-y-6" ref={formRef}>
         {safeState.message ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300" role="alert">
-          {safeState.message}
-        </div>
+            {safeState.message}
+          </div>
         ) : null}
 
         <Card className="p-5 sm:p-6">
@@ -108,7 +125,14 @@ export function PublicEnrollmentForm() {
           </div>
         </Card>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-border/80 bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rx-focus)] dark:border-white/[0.10] dark:bg-white/[0.04] dark:text-[#f8fafc] dark:hover:bg-white/[0.08]"
+            onClick={fillDemoEnrollment}
+            type="button"
+          >
+            Load random demo data
+          </button>
           <Link className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-slate-100 px-5 py-3 text-sm font-medium text-ink transition hover:bg-slate-200 dark:bg-white/[0.10] dark:text-[#f8fafc] dark:hover:bg-white/[0.15]" href="/">
             Back
           </Link>

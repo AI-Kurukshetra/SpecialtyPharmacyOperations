@@ -57,8 +57,13 @@ export function PatientDashboardClient() {
     }
 
     const supabase = createClient();
+    let isMounted = true;
 
-    async function loadDashboard() {
+    async function loadDashboard(showLoading = false) {
+      if (showLoading && isMounted) {
+        setLoading(true);
+      }
+
       const [{ data: patient, error: patientError }, { data: prescriptions, error: prescriptionsError }, { data: messages, error: messagesError }] =
         await Promise.all([
           supabase.from("patients").select("first_name, last_name, status").eq("id", patientId).maybeSingle(),
@@ -74,12 +79,17 @@ export function PatientDashboardClient() {
             .order("created_at", { ascending: false }),
         ]);
 
+      if (!isMounted) {
+        return;
+      }
+
       if (patientError || prescriptionsError || messagesError || !patient) {
         setError(patientError?.message ?? prescriptionsError?.message ?? messagesError?.message ?? "Unable to load patient dashboard.");
         setLoading(false);
         return;
       }
 
+      setError(null);
       setData({
         patient,
         prescriptions: prescriptions ?? [],
@@ -88,7 +98,25 @@ export function PatientDashboardClient() {
       setLoading(false);
     }
 
-    void loadDashboard();
+    void loadDashboard(true);
+
+    const refreshInterval = window.setInterval(() => {
+      void loadDashboard(false);
+    }, 15000);
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void loadDashboard(false);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(refreshInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [router]);
 
   if (loading) {

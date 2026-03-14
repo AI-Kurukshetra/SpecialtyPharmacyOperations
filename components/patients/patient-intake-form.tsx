@@ -1,14 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useActionState } from "react";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useActionState, useRef } from "react";
 
-import { createPatientEnrollment } from "@/app/actions/patients";
-import { initialPatientFormState } from "@/lib/form-states";
+import {
+  createPatientEnrollment,
+  type NewEnrollmentOption,
+  type PatientEnrollmentData,
+} from "@/app/actions/patients";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  fillDemoEnrollmentForm,
+  getRandomDemoEnrollment,
+} from "@/lib/demo-enrollment-data";
+import { initialPatientFormState } from "@/lib/form-states";
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -66,28 +75,93 @@ function Section({
   );
 }
 
-export function PatientIntakeForm() {
+function enrollmentDataToValues(d: PatientEnrollmentData): Record<string, string> {
+  return {
+    first_name: d.first_name ?? "",
+    last_name: d.last_name ?? "",
+    date_of_birth: d.date_of_birth ?? "",
+    phone: d.phone ?? "",
+    email: d.email ?? "",
+    address: d.address ?? "",
+    insurance_provider: d.insurance_provider ?? "",
+    member_id: d.member_id ?? "",
+    group_number: d.group_number ?? "",
+    provider_name: d.provider_name ?? "",
+    clinic_name: d.clinic_name ?? "",
+    provider_npi: d.provider_npi ?? "",
+    provider_phone: d.provider_phone ?? "",
+    medication_name: d.medication_name ?? "",
+    diagnosis: d.diagnosis ?? "",
+    icd10_code: d.icd10_code ?? "",
+    dose: d.dose ?? "",
+  };
+}
+
+export function PatientIntakeForm({
+  initialData,
+  loadedPatientId,
+  newEnrollmentOptions = [],
+}: {
+  initialData?: PatientEnrollmentData | null;
+  loadedPatientId?: string;
+  newEnrollmentOptions?: NewEnrollmentOption[];
+}) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const lastDemoIdRef = useRef<string | undefined>(undefined);
   const [state, formAction] = useActionState(
     createPatientEnrollment,
     initialPatientFormState,
   );
   const safeState = state ?? initialPatientFormState;
-  const values = safeState.values ?? {};
-  const checks = safeState.checks ?? {};
+  const hasStateValues = safeState.values && Object.keys(safeState.values).length > 0;
+  const values = hasStateValues
+    ? (safeState.values ?? {})
+    : (initialData ? enrollmentDataToValues(initialData) : {});
+  const checks = safeState.checks ?? (initialData
+    ? {
+        hipaa_consent: initialData.hipaa_consent,
+        enrollment_confirmed: initialData.enrollment_confirmed,
+      }
+    : {});
   const errors = safeState.fieldErrors ?? {};
 
+  function fillDemoEnrollment() {
+    const form = formRef.current;
+
+    if (!form) return;
+
+    const demoProfile = getRandomDemoEnrollment(lastDemoIdRef.current);
+
+    fillDemoEnrollmentForm(form, demoProfile);
+    lastDemoIdRef.current = demoProfile.id;
+  }
+
+  function handleSelectEnrollment(patientId: string) {
+    if (!patientId) {
+      router.push("/patients/new");
+      return;
+    }
+    router.push(`/patients/new?load=${encodeURIComponent(patientId)}`);
+  }
+
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} className="space-y-6" ref={formRef} key={loadedPatientId ?? "new"}>
+      {loadedPatientId ? (
+        <input name="patient_id" type="hidden" value={loadedPatientId} />
+      ) : null}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brandDark dark:text-accent">
             Patient Intake
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-ink dark:text-[#f8fafc]">
-            Register a new patient enrollment
+            {loadedPatientId ? "Review and save enrollment" : "Register a new patient enrollment"}
           </h1>
           <p className="mt-2 text-sm text-slate dark:text-[#cbd5e1]">
-            Capture patient, insurance, provider, and initial medication details in a single workflow.
+            {loadedPatientId
+              ? "Update details as needed and save to continue processing this enrollment."
+              : "Capture patient, insurance, provider, and initial medication details in a single workflow."}
           </p>
         </div>
         <Link
@@ -96,6 +170,50 @@ export function PatientIntakeForm() {
         >
           Back to patients
         </Link>
+      </div>
+
+      {newEnrollmentOptions.length > 0 ? (
+        <Card className="p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-ink dark:text-[#f8fafc]">
+            Load from new patient enrollment
+          </h2>
+          <p className="mt-1 text-sm text-slate dark:text-[#cbd5e1]">
+            Select a patient to load their submitted enrollment data and save for further processing.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label className="sr-only" htmlFor="load-enrollment">
+              Select patient enrollment
+            </label>
+            <select
+              id="load-enrollment"
+              className="min-h-[44px] min-w-[220px] rounded-2xl border border-border/80 bg-white px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-[var(--rx-focus)] dark:border-white/[0.10] dark:bg-white/[0.04] dark:text-[#f8fafc]"
+              value={loadedPatientId ?? ""}
+              onChange={(e) => handleSelectEnrollment(e.target.value)}
+            >
+              <option value="">— New enrollment (enter manually) —</option>
+              {newEnrollmentOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.name}
+                </option>
+              ))}
+            </select>
+            {loadedPatientId ? (
+              <span className="text-sm text-slate dark:text-[#cbd5e1]">
+                Loaded. Edit below and save to update.
+              </span>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+
+      <div className="flex justify-start">
+        <button
+          className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-border/80 bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rx-focus)] dark:border-white/[0.10] dark:bg-white/[0.04] dark:text-[#f8fafc] dark:hover:bg-white/[0.08]"
+          onClick={fillDemoEnrollment}
+          type="button"
+        >
+          Load random demo data
+        </button>
       </div>
 
       {safeState.message ? (
@@ -288,7 +406,10 @@ export function PatientIntakeForm() {
           Cancel
         </Link>
         <div className="sm:min-w-[220px]">
-          <SubmitButton idleText="Save patient enrollment" pendingText="Saving enrollment..." />
+          <SubmitButton
+            idleText={loadedPatientId ? "Save and continue processing" : "Save patient enrollment"}
+            pendingText="Saving..."
+          />
         </div>
       </div>
     </form>
