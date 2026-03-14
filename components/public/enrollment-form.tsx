@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Textarea } from "@/components/ui/textarea";
+import { initialWorkflowFormState } from "@/lib/form-states";
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -15,21 +16,15 @@ function FieldError({ message }: { message?: string }) {
   return <p className="mt-2 text-sm text-error dark:text-rose-300">{message}</p>;
 }
 
-const initialWorkflowFormState = {
-  message: "",
-  fieldErrors: {},
-  values: {},
-  checks: {},
-};
-
 export function PublicEnrollmentForm() {
   const [state, formAction] = useActionState(
     submitPublicEnrollment,
     initialWorkflowFormState,
   );
-  const values = state.values;
-  const checks = state.checks;
-  const errors = state.fieldErrors;
+  const safeState = state ?? initialWorkflowFormState;
+  const values = safeState.values;
+  const checks = safeState.checks;
+  const errors = safeState.fieldErrors;
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -46,10 +41,10 @@ export function PublicEnrollmentForm() {
       </div>
 
       <form action={formAction} className="space-y-6">
-        {state.message ? (
+        {safeState.message ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300" role="alert">
-            {state.message}
-          </div>
+          {safeState.message}
+        </div>
         ) : null}
 
         <Card className="p-5 sm:p-6">

@@ -7,19 +7,13 @@ import { patientLogin } from "@/app/actions/workflow";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { initialWorkflowFormState } from "@/lib/form-states";
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
 
   return <p className="mt-2 text-sm text-error dark:text-rose-300">{message}</p>;
 }
-
-const initialWorkflowFormState = {
-  message: "",
-  fieldErrors: {},
-  values: {},
-  checks: {},
-};
 
 export function PatientLoginForm({
   message,

@@ -5,13 +5,7 @@ import { redirect } from "next/navigation";
 
 import { clearPatientSessionId, setPatientSessionId } from "@/lib/patient-session";
 import { createClient } from "@/lib/supabase/server";
-
-type WorkflowFormState = {
-  message: string;
-  fieldErrors: Record<string, string>;
-  values: Record<string, string>;
-  checks: Record<string, boolean>;
-};
+import type { ActionFormState } from "@/lib/form-states";
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -55,7 +49,7 @@ function buildPublicEnrollmentValues(formData: FormData) {
 }
 
 export async function submitPublicEnrollment(
-  _prevState: WorkflowFormState,
+  _prevState: ActionFormState,
   formData: FormData,
 ) {
   const values = buildPublicEnrollmentValues(formData);
@@ -133,7 +127,7 @@ export async function submitPublicEnrollment(
 }
 
 export async function patientLogin(
-  _prevState: WorkflowFormState,
+  _prevState: ActionFormState,
   formData: FormData,
 ) {
   const email = getString(formData, "email");
