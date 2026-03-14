@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WCAG AA: text/background contrast ≥4.5:1 (normal), ≥3:1 (large/UI) */
+:root {
+  color-scheme: light;
+  --rx-bg: #f8fafc;
+  --rx-surface: #ffffff;
+  --rx-primary: #0d5c55;
+  --rx-primary-hover: #0a4943;
+  --rx-text-primary: #0f172a;
+  --rx-text-secondary: #334155;
+  --rx-text-muted: #475569;
+  --rx-border: #cbd5e1;
+  --rx-glass: rgba(255, 255, 255, 0.92);
+  --rx-focus: #0d5c55;
+  --rx-focus-ring: rgba(13, 92, 85, 0.35);
+  --stat-box-text: #0f172a;
+  --stat-box-muted: #334155;
+}
+
+.dark {
+  color-scheme: dark;
+  --rx-bg: #0b1220;
+  --rx-surface: #111827;
+  --rx-primary: #2dd4bf;
+  --rx-primary-hover: #5eead4;
+  --rx-text-primary: #f1f5f9;
+  --rx-text-secondary: #cbd5e1;
+  --rx-text-muted: #94a3b8;
+  --rx-border: rgba(255, 255, 255, 0.12);
+  --rx-glass: rgba(17, 24, 39, 0.88);
+  --rx-focus: #2dd4bf;
+  --rx-focus-ring: rgba(45, 212, 191, 0.4);
+  --stat-box-text: #f1f5f9;
+  --stat-box-muted: #cbd5e1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Skip to main content - visible on focus for keyboard/screen reader users */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: var(--rx-primary);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  transform: translateY(-120%);
+  transition: transform 0.2s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 3px solid var(--rx-focus);
+  outline-offset: 2px;
+}
+
+body {
+  @apply antialiased;
+  min-height: 100vh;
+  font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+  background-color: var(--rx-bg);
+  color: var(--rx-text-primary);
+  background-image:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(15, 118, 110, 0.06), transparent 24%),
+    linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.dark body {
+  background-image:
+    radial-gradient(circle at 12% 12%, rgba(20, 184, 166, 0.10), transparent 22%),
+    radial-gradient(circle at 88% 8%, rgba(20, 184, 166, 0.08), transparent 18%),
+    radial-gradient(circle at 50% 100%, rgba(17, 24, 39, 0.18), transparent 28%),
+    linear-gradient(180deg, #0b1220 0%, #0d1422 50%, #0f1726 100%);
+}
+
+/* Consistent focus-visible outline (keyboard/screen reader; not mouse) */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--rx-focus);
+  outline-offset: 2px;
+}
+
+a {
+  @apply transition-colors;
+}
+
+.glass-dark {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-dark-soft {
+  background: rgba(17, 24, 39, 0.68);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+::selection {
+  background: rgba(20, 184, 166, 0.28);
+  color: var(--rx-text-primary);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@layer base {
+  h1 {
+    @apply text-3xl font-semibold tracking-[-0.02em] sm:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold tracking-[-0.02em] sm:text-3xl;
+  }
+
+  h3 {
+    @apply text-lg font-semibold tracking-[-0.01em] sm:text-xl;
+  }
+
+  p {
+    @apply leading-6;
+  }
+}
